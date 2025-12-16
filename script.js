@@ -1,12 +1,12 @@
 const canvas = document.getElementById("canvas");
 const context = canvas.getContext("2d");
 
-canvas.width = 600;
-canvas.height = 400;
+//canvas.width = 600;
+//canvas.height = 400;
 
 let camera = {x: 0, y: 0};
-const scale = 10;
-const range = 100;
+let scale = 30;
+let range = 1000;
 
 function calculatePosition(pos) {
     const matrix = [
@@ -44,12 +44,23 @@ function renderSystem() {
     const right = calculatePosition({x: range, y: 0});
     const bottom = calculatePosition({x: 0, y: -range});
 
+    for (let i = -range; i < range; i++) {
+        // X-axel
+        drawPoint(calculatePosition({x:i, y:0}));
+
+        // Y-axel
+        drawPoint(calculatePosition({x:0, y:i}));
+    }
+
     drawLine(left, right , "#ffffff");
     drawLine(top, bottom, "#ffffff");
 }
 
 function decodeY(x, graph) {
     // Handling implicit multiplication
+
+    if (graph === "") return;
+
     try {
         let newString = graph.replace(/(\d+)(x|\()/g, "$1*$2");
         newString = newString.replace(/x/g, `(${x})`);
@@ -75,15 +86,21 @@ function renderGraph(graph) {
         const nPoint = calculatePosition(point);
        
         //drawPoint(nPoint);
-        drawLine(prev, nPoint, "#00ff00");
-
+        if (prev.x != 0 && prev.y != 0) {
+            drawLine(prev, nPoint, "#00ff00");
+        }
+        
         prev = nPoint;
     }
 }
 
 function clearScreen() {
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+
     context.clearRect(0, 0, canvas.width, canvas.height);
-    context.fillStyle = "black";
+    context.fillStyle = "#aaaaaa";
     context.fillRect(0, 0, canvas.width, canvas.height);  
 }
 
@@ -95,25 +112,95 @@ function createGraphInput(id) {
 
  
     //alert("sedf"); console log BS:ar just nu
-    menu.appendChild(graphInput);
+    menu.insertBefore(graphInput, document.getElementById("add-graph"));
     return graphInput;
 }
+let id = 0;
+let graphInputs = [];
 
 function update() {
     clearScreen();
     renderSystem();
-    renderGraph("10(x^2)");
-    renderGraph("x+10");
+    //renderGraph("10(x^2)");
+    //renderGraph("x+10");
+
+    if (graphInputs.length != 0) {
+        graphInputs.forEach(graph => {
+            renderGraph(graph.value);
+        });
+    }
+
+
     requestAnimationFrame(update);
 }
 
 update();
 
-let id = 0;
-let graphInputs = [];
+
+let leftMouseDown = false;
+let lastX = null;
+let lastY = null;
+
+addEventListener("mousedown", (e) => {
+    leftMouseDown = true;
+})
+addEventListener("mouseup", (e) => {
+    leftMouseDown = false;
+})
+
+document.getElementById("add-graph").onclick = function () {
+    //alert("asdf");
+    graphInputs.push(createGraphInput(id));
+    id++;
+}
+
 addEventListener("keydown", (e) => {
-    if (e.key === "Tab") {
+    if (e.key === "r") {
+        //alert("Here!");
         graphInputs.push(createGraphInput(id));
         id++;
     }
+});
+
+addEventListener("wheel", (e) => {
+    scale -= e.deltaY/100;
+})
+
+addEventListener("mousemove", (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    
+    if (lastX === null) {
+        lastX = x;
+        lastY = y;
+        return;
+    }
+
+    const deltaX = x - lastX;
+    const deltaY = y - lastY;
+
+    
+    const inside =
+        x >= rect.left &&
+        x <= rect.right &&
+        y >= rect.top &&
+        y <= rect.bottom;
+
+    if (leftMouseDown && inside) {
+        camera.x -= deltaX;
+        camera.y += deltaY;
+    }
+
+
+    lastX = x;
+    lastY = y;
+
+    //console.log(deltaX, deltaY);
+});
+
+canvas.addEventListener('mouseleave', () => {
+  lastX = null;
+  lastY = null;
 });
