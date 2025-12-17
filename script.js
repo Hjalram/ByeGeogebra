@@ -5,14 +5,14 @@ const context = canvas.getContext("2d");
 //canvas.height = 400;
 
 let camera = {x: 0, y: 0};
-let scale = 30;
+let scale = {x: 30, y: 30};
 let range = 1000;
 let subdivs = 4;
 
 function calculatePosition(pos) {
     const matrix = [
-        [scale, 0],
-        [0, -scale],
+        [scale.x, 0],
+        [0, -scale.y],
         [-camera.x + canvas.width/2, camera.y + canvas.height/2]
     ];
 
@@ -73,55 +73,6 @@ function renderSystem() {
     drawLine(top, bottom, "#ffffff");
 }
 
-function decodeY(x, graph) {
-    // Handling implicit multiplication
-
-    if (!graph) return;
-
-
-    try {
-        //let newString = graph.replace(/(\d+)(x|\()/g, "$1*$2");
-        //newString = newString.replace(/x/g, `(${x})`);
-        //newString = newString.replace(/\^/g, "**");
-        let newString = graph.replaceAll("^", "**");
-        newString = newString.replace(/(\d+)(x|\()/g, "$1*$2");
-        newString = newString.replace(/x/g, `${x}`);
-        
-        //console.log(newString);
-        const result = Function(
-        `"use strict"; return (${newString})`
-        )();
-        //const result = math.evaluate(newString);
-        //console.log(result);
-        return result;
-    }
-    catch (e) {
-        return NaN;
-    }
-}
-
-function renderGraph(graph) {
-    let prev = {x: 0, y: 0};
-   
-    for (let i = -range; i < range; i++) {
-        for (let j = 0; j < subdivs; j++) {
-            const subSize = 1/subdivs;
-            const x = i+j*subSize;
-
-            const nGraph = decodeY(x, graph);
-            const point = {x: x, y: nGraph}
-            const nPoint = calculatePosition(point);
-        
-            //drawPoint(nPoint);
-            if (prev.x != 0 && prev.y != 0) {
-                drawLine(prev, nPoint, "#aa0000");
-            }
-            
-            prev = nPoint;
-        }
-    }
-}
-
 function clearScreen() {
     const rect = canvas.getBoundingClientRect();
     canvas.width = rect.width;
@@ -132,24 +83,98 @@ function clearScreen() {
     context.fillRect(0, 0, canvas.width, canvas.height);  
 }
 
-function createGraphInput(id) {
-    const menu = document.getElementById("menu");
-    const div = document.createElement("div");
-    const colorInput = document.createElement("input");
-    const graphInput = document.createElement("input");
-    graphInput.id = id;
-    colorInput.type = "color";
-    graphInput.type = "text";
+class Graph {
+    constructor() {
+        this.function = "3x+5";
+        this.color = "#aa0000";
 
- 
-    //alert("sedf"); console log BS:ar just nu
-    div.appendChild(graphInput);
-    div.appendChild(colorInput);
-    menu.insertBefore(div, document.getElementById("add-graph"));
-    return graphInput;
+        // Creating the related html elements
+        const menu = document.getElementById("menu");
+        this.div = document.createElement("div");
+
+        this.colorInput = document.createElement("input");
+        this.functionInput = document.createElement("input");
+        this.colorInput.type = "color";
+        this.functionInput.type = "text";
+
+        this.div.appendChild(this.functionInput);
+        this.div.appendChild(this.colorInput);
+        menu.insertBefore(this.div, document.getElementById("add-graph"));
+    }
+
+    decodeY(x) {
+        if (!this.function) return;
+
+        
+        try {
+            //let newString = graph.replace(/(\d+)(x|\()/g, "$1*$2");
+            //newString = newString.replace(/x/g, `(${x})`);
+            //newString = newString.replace(/\^/g, "**");
+            let newString = this.function.replaceAll("^", "**");
+            newString = newString.replace(/(\d+)(x|\()/g, "$1*$2");
+            newString = newString.replace(/x/g, `${x}`);
+            
+            function tand(d) {return Math.tan(d * Math.PI/180);}
+            function sind(d) {return Math.sin(d * Math.PI/180);}
+            function cosd(d) {return Math.sin(d * Math.PI/180);}
+            function tan(d) {return Math.tan(d);}
+            function sin(d) {return Math.sin(d);}
+            function cos(d) {return Math.sin(d);}
+            function ln(d) {return Math.log(d);}
+            function lg(d) {return Math.log(d)/Math.log(10);}
+
+            const result = Function(
+                "tand",
+                "sind",
+                "cosd",
+                "tan",
+                "sin",
+                "cos",
+                "ln",
+                "lg",
+                `"use strict"; return (${newString})`
+            )(tand, sind, cosd, tan, sin, cos, ln, lg);
+
+            return result;
+        }
+        catch (e) {
+            return NaN;
+        }
+    }
+
+    render() {
+        this.function = this.functionInput.value;
+        this.color = this.colorInput.value;
+
+        let prev = {x: 0, y: 0};
+    
+        for (let i = -range; i < range; i++) {
+            for (let j = 0; j < subdivs; j++) {
+                const subSize = 1/subdivs;
+                const x = i+j*subSize;
+
+                const nGraph = this.decodeY(x);
+                const point = {x: x, y: nGraph}
+                const nPoint = calculatePosition(point);
+            
+                //drawPoint(nPoint);
+                if (prev.x != 0 && prev.y != 0) {
+                    drawLine(prev, nPoint, this.color);
+                }
+                
+                prev = nPoint;
+            }
+        }
+    }
 }
-let id = 0;
-let graphInputs = [];
+
+
+
+
+
+
+
+let graphs = [];
 
 function update() {
     clearScreen();
@@ -157,9 +182,9 @@ function update() {
     //drawFixedText("(100, 100)", {x: 100, y: 100}, "black");
     //drawCalculatedText("(10, 10)", {x: 0, y: 0}, "black");
 
-    if (graphInputs.length != 0) {
-        graphInputs.forEach(graph => {
-            renderGraph(graph.value);
+    if (graphs.length != 0) {
+        graphs.forEach(graph => {
+            graph.render();
         });
     }
 
@@ -182,21 +207,12 @@ addEventListener("mouseup", (e) => {
 })
 
 document.getElementById("add-graph").onclick = function () {
-    //alert("asdf");
-    graphInputs.push(createGraphInput(id));
-    id++;
+    graphs.push(new Graph());
 }
 
-addEventListener("keydown", (e) => {
-    if (e.key === "r") {
-        //alert("Here!");
-        graphInputs.push(createGraphInput(id));
-        id++;
-    }
-});
-
 addEventListener("wheel", (e) => {
-    scale -= e.deltaY/100;
+    scale.x -= e.deltaY/100;
+    scale.y -= e.deltaY/100;
 })
 
 addEventListener("mousemove", (e) => {
