@@ -7,6 +7,7 @@ const context = canvas.getContext("2d");
 let camera = {x: 0, y: 0};
 let scale = 30;
 let range = 1000;
+let subdivs = 4;
 
 function calculatePosition(pos) {
     const matrix = [
@@ -21,6 +22,12 @@ function calculatePosition(pos) {
     };
 }
 
+function drawText(text, pos, color, size) {
+    context.font = size + " Times New Roman";
+    context.fillStyle = color;
+    context.fillText(text, pos.x, pos.y);
+}
+
 function drawPoint(pos) {
     context.beginPath();
     context.arc(pos.x, pos.y, 2, 0, Math.PI*2);
@@ -30,6 +37,7 @@ function drawPoint(pos) {
 }
 
 function drawLine(n, p, color) {
+    context.lineWidth = 3;
     context.strokeStyle = color;
     context.beginPath();
     context.moveTo(Math.round(n.x), Math.round(n.y));
@@ -47,9 +55,18 @@ function renderSystem() {
     for (let i = -range; i < range; i++) {
         // X-axel
         drawPoint(calculatePosition({x:i, y:0}));
+        if (i % 10 === 0 && i !== 0) {
+            const calced = calculatePosition({x:i, y:0});
+            drawText(`${i}`, {x:calced.x-7, y:calced.y+10}, "white");
+        }
+        
 
         // Y-axel
         drawPoint(calculatePosition({x:0, y:i}));
+        if (i % 10 === 0 && i !== 0) {
+            const calced = calculatePosition({x:0, y:i});
+            drawText(`${i}`, {x:calced.x-18, y:calced.y+5}, "white");
+        }
     }
 
     drawLine(left, right , "#ffffff");
@@ -59,21 +76,27 @@ function renderSystem() {
 function decodeY(x, graph) {
     // Handling implicit multiplication
 
-    if (graph === "") return;
+    if (!graph) return;
+
 
     try {
-        let newString = graph.replace(/(\d+)(x|\()/g, "$1*$2");
-        newString = newString.replace(/x/g, `(${x})`);
-        newString = newString.replace(/\^/g, "**");
-
+        //let newString = graph.replace(/(\d+)(x|\()/g, "$1*$2");
+        //newString = newString.replace(/x/g, `(${x})`);
+        //newString = newString.replace(/\^/g, "**");
+        let newString = graph.replaceAll("^", "**");
+        newString = newString.replace(/(\d+)(x|\()/g, "$1*$2");
+        newString = newString.replace(/x/g, `${x}`);
+        
         //console.log(newString);
-        const result = Function(`"use strict"; return (${newString})`)();
-
+        const result = Function(
+        `"use strict"; return (${newString})`
+        )();
+        //const result = math.evaluate(newString);
         //console.log(result);
         return result;
     }
-    catch {
-        console.log("Incorrect Form");
+    catch (e) {
+        return NaN;
     }
 }
 
@@ -81,16 +104,21 @@ function renderGraph(graph) {
     let prev = {x: 0, y: 0};
    
     for (let i = -range; i < range; i++) {
-        const nGraph = decodeY(i, graph);
-        const point = {x: i, y: nGraph}
-        const nPoint = calculatePosition(point);
-       
-        //drawPoint(nPoint);
-        if (prev.x != 0 && prev.y != 0) {
-            drawLine(prev, nPoint, "#00ff00");
-        }
+        for (let j = 0; j < subdivs; j++) {
+            const subSize = 1/subdivs;
+            const x = i+j*subSize;
+
+            const nGraph = decodeY(x, graph);
+            const point = {x: x, y: nGraph}
+            const nPoint = calculatePosition(point);
         
-        prev = nPoint;
+            //drawPoint(nPoint);
+            if (prev.x != 0 && prev.y != 0) {
+                drawLine(prev, nPoint, "#aa0000");
+            }
+            
+            prev = nPoint;
+        }
     }
 }
 
@@ -106,13 +134,18 @@ function clearScreen() {
 
 function createGraphInput(id) {
     const menu = document.getElementById("menu");
+    const div = document.createElement("div");
+    const colorInput = document.createElement("input");
     const graphInput = document.createElement("input");
     graphInput.id = id;
+    colorInput.type = "color";
     graphInput.type = "text";
 
  
     //alert("sedf"); console log BS:ar just nu
-    menu.insertBefore(graphInput, document.getElementById("add-graph"));
+    div.appendChild(graphInput);
+    div.appendChild(colorInput);
+    menu.insertBefore(div, document.getElementById("add-graph"));
     return graphInput;
 }
 let id = 0;
@@ -121,8 +154,8 @@ let graphInputs = [];
 function update() {
     clearScreen();
     renderSystem();
-    //renderGraph("10(x^2)");
-    //renderGraph("x+10");
+    //drawFixedText("(100, 100)", {x: 100, y: 100}, "black");
+    //drawCalculatedText("(10, 10)", {x: 0, y: 0}, "black");
 
     if (graphInputs.length != 0) {
         graphInputs.forEach(graph => {

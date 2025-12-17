@@ -38,6 +38,10 @@ body {
     cursor: pointer;
 }
 
+.menu div {
+    display: flex;
+}
+
 .menu button, input {
     height: 40px;
     padding-left: 10px;
