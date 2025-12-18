@@ -1,0 +1,1 @@
+# Att skriva f(x)=1x ger konstig graf 
